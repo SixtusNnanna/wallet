@@ -2,14 +2,16 @@ from datetime import datetime, UTC
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from decimal import Decimal
-from backend.database.db_types import LoanStatus
+from backend.database.db_types import LoanStatus, RepaymentFrequency
 
 
 class LoanBase(BaseModel):
     user_id: UUID
     currency: str
-    interest_rate: Decimal
-    status: LoanStatus = Field(default=LoanStatus.PENDING)
+    status: LoanStatus = Field(default=LoanStatus.ACTIVE)
+    repayment_frequency: RepaymentFrequency = Field(
+        default=RepaymentFrequency.MONTHLY)
+
     start_date: datetime = Field(default=datetime.now(UTC))
     due_date: datetime = Field(default=datetime.now(UTC))
     end_date: datetime = Field(default=datetime.now(UTC))
@@ -17,9 +19,8 @@ class LoanBase(BaseModel):
 
 class LoanCreate(LoanBase):
     principal: Decimal
-    balance: Decimal
 
-    @field_validator("principal", "balance")
+    @field_validator("principal")
     @classmethod
     def validate_non_zero(cls, v):
         if v < 0:

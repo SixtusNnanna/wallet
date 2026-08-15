@@ -7,10 +7,7 @@ from backend.database.db_types import RepaymentStatus
 
 class RepaymentBase(BaseModel):
     loan_id: UUID
-    user_id: UUID
-    gateway_reference: str
     payment_method: str
-    paid_at: datetime | None = None
 
 
 class RepaymentCreate(RepaymentBase):
@@ -29,6 +26,8 @@ class RepaymentRead(RepaymentBase):
     created_at: datetime
     updated_at: datetime
     status: RepaymentStatus
+    paid_at: datetime | None = None
+    gateway_reference: str
 
     model_config = ConfigDict(from_attributes=True)
 

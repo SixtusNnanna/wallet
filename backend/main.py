@@ -82,21 +82,66 @@ async def invalid_password_handler(
     )
 
 @app.exception_handler(user_exception.PaymentInitiationError)
-async def paymenterrorException(request: Request, exc:user_exception.PaymentInitiationError ):
+async def paymenterrorException(request: Request, exc: user_exception.PaymentInitiationError ):
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Could not initiate payment, try again"},
+        )
 
 @app.exception_handler(user_exception.InvalidTokenError)
 async def invalid_token_handler(
     request: Request, exc: user_exception.InvalidTokenError
 ):
     return JSONResponse(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        content={"detail": "Could not initiate payment, try again"},
-    )
-    # 401 Unauthorized: Domin JWT token ya mutu ko ba shi da inganci
-    return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
         content={"detail": "Token ɗinka ba shi da inganci ko ya mutu."},
     )
+
+
+@app.exception_handler(user_exception.PaymentError)
+async def payment_exception(request: Request, exc: user_exception.PaymentError):
+    return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc)}
+        )
+
+@app.exception_handler(user_exception.RepaymentAlreadPendingError)
+async def repayment_pending_exception(request: Request, exc: user_exception.RepaymentAlreadPendingError):
+    return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc)}
+        )
+@app.exception_handler(user_exception.NoActiveLoanError)
+async def no_loan_exception(request: Request, exc: user_exception.NoActiveLoanError):
+    return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": str(exc)})
+@app.exception_handler(user_exception.IntegrityError)
+async def repayment_already_confirmed_exception(request: Request, exc: user_exception.IntegrityError):
+    return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": str(exc)})
+
+@app.exception_handler(user_exception.PaymentAmountMismatchError)
+async def payment_amount_exception(
+    request: Request,
+    exc: user_exception.PaymentAmountMismatchError,
+    ):
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+@app.exception_handler(user_exception.BadRequestException)
+async def bad_request_exception(
+    request: Request,
+    exc: user_exception.BadRequestException,
+        ):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
 
 
 @app.get("/scalars", include_in_schema=False)

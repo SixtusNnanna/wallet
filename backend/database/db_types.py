@@ -15,6 +15,12 @@ class LoanStatus(Enum):
     WRIITENOFF = "written_off"
 
 
+class RepaymentFrequency(Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+
+
 class RepaymentStatus(Enum):
     PENDING = "pending"
     SUCCESS = "success"
@@ -35,3 +41,4 @@ class TransactionStatus(Enum):
     PENDING = "pending"
     SUCCESS = "success"
     FAILED = "failed"
+

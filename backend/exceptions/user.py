@@ -31,7 +31,7 @@ class PayStackError(Exception):
     pass
 
 class IntegrityError(Exception):
-    pass
+    """ Websocket Already exist"""
 
 class InvalidResponseError(Exception):
     pass
@@ -44,3 +44,5 @@ class PaymentAmountMismatchError(Exception):
 class RepaymentAlreadyConfirmedError(Exception):
     pass
 
+class BadRequestException(Exception):
+    pass

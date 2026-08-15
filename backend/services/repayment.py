@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,31 +39,34 @@ class RepaymentServices(BaseService[Repayment]):
         loan = result.scalar_one_or_none()
         if loan is None:
             raise NotFoundError("No Loan")
-        if loan.status != "active":
-            raise NoActiveLoanError
+        # if loan.status != "active":
+        #     raise NoActiveLoanError("You do not have active loan")
         existing_pending_payment = await self.check_existing_pending_repayment(
-            repayment_data.load_id
+            repayment_data.loan_id
         )
         if existing_pending_payment:
-            raise RepaymentAlreadPendingError
+            raise RepaymentAlreadPendingError(
+                "There is a pending Repayment Process, Conclude it"
+                )
 
-        repayment = Repayment(**repayment_data.model_dump(), status="pending")
+        repayment = Repayment(**repayment_data.model_dump(), user_id=user.id, status="pending")
 
-        await self.session.add(repayment)
+        self.session.add(repayment)
         try:
-            gate_way_response = self.paystack_client.initialize_transaction(
+            gate_way_response = await self.paystack_client.initialize_transaction(
                 email=user.email,
-                amount=repayment.amount,
-                reference=str(repayment.id),
+                amount=int(repayment.amount * 100),
+                reference=f"trans-{uuid4().hex}"
             )
-        except PayStackError:
+        except PayStackError as e:
             repayment.status = "failed"
             await self.session.commit()
-            raise PaymentInitiationError
+            if e.code == "duplicate_reference":
+                raise PaymentInitiationError("Could not reinitiate payment, try again")
 
-        repayment.gateway_reference = gate_way_response["reference"]
+        repayment.gateway_reference = gate_way_response["data"]["reference"]
         await self.session.commit()
-        return {"checkout_url": gate_way_response["authorization_url"]}
+        return {"checkout_url": gate_way_response["data"]["authorization_url"]}
 
     async def get_repayments(
         self,
@@ -73,7 +76,6 @@ class RepaymentServices(BaseService[Repayment]):
     ):
         return await self.list(
             user_id=user_id,
-            order_by=self.model.created_at.desc(),
             offset_val=skip,
             limit_val=limit,
         )
@@ -106,7 +108,7 @@ class RepaymentServices(BaseService[Repayment]):
         if pending_repayment_exist is None:
             raise NotFoundError("No Pending Repayment")
         payload = await self.paystack_client.verify_transction(
-            str(repayment_id)
+            pending_repayment_exist.gateway_reference
         )
         gate_way_status = payload["data"]["status"]
         if gate_way_status != "success":

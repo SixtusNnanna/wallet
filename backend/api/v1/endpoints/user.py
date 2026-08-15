@@ -1,9 +1,11 @@
 from typing import Annotated
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from backend.api.dependencies import UserDeps, get_token_data, CurrentUserDps
+from backend.api.dependencies import UserDeps, get_token_data, CurrentUserDps, AdminUserDeps
 from backend.api.schemas.user import UserRead, UserCreate
 from backend.core.security import TokenData
+from backend.database.db_types import Role
 from backend.utlis import create_access_token, decode_access_token
 from backend.database.redis import blacklist_jti
 
@@ -61,3 +63,20 @@ async def logout(token_data: Annotated[dict, Depends(get_token_data)]):
 @router.get("/me", response_model=UserRead)
 async def get_me(user: CurrentUserDps):
     return user
+
+@router.patch("/{user_id}/role")
+async def swap_user_role(
+    user_id: UUID,
+    role: Role,
+    service: UserDeps,
+    user: AdminUserDeps,
+):
+    user = await service.change_user_role(
+        user_id=user_id, role=role
+    )
+    return {
+        "message": "User role changed successfully",
+        "user": user,
+    }
+
+

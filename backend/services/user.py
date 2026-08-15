@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -6,6 +7,7 @@ from backend.api.schemas.user import UserCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.services.base import BaseService
 from backend.core.email_token import generate_verification_token, verify_verfication_token
+from backend.database.db_types import Role
 
 from backend.exceptions import user as user_exception
 from backend.services.notification import NotificationService
@@ -21,6 +23,22 @@ class UserService(BaseService[User]):
     def __init__(self, session:  AsyncSession):
         super().__init__(session, User)
         self.notifcation = NotificationService()
+
+    async def change_user_role(self, user_id: UUID, role: Role):
+        user = await self.get(id=user_id)
+        if not user:
+            return
+        if user.role == role:
+            raise user_exception.BadRequestException(
+                f"User is already a {user.role.value}"
+            )
+
+        user.role = role
+
+        await self.session.commit()
+        await self.session.refresh(user)
+
+        return user
 
     async def signup(self, user_data: UserCreate):
         existing = await self.session.execute(

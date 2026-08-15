@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,12 +6,26 @@ from backend.database.models import Loan, User
 from backend.api.schemas.loan import LoanCreate, LoanRead
 from backend.services.base import BaseService
 from backend.exceptions.user import ExistsError, NotFoundError
-from backend.database.db_types import LoanStatus
+from backend.database.db_types import LoanStatus, RepaymentFrequency
 
 
 class LoanService(BaseService[Loan]):
     def __init__(self, session: AsyncSession):
         super().__init__(session, Loan)
+
+    @staticmethod
+    def get_interest_rate(
+        repayment_frequency: RepaymentFrequency,
+    ) -> Decimal:
+        if repayment_frequency == RepaymentFrequency.MONTHLY:
+            return Decimal("0.04")
+        elif repayment_frequency == RepaymentFrequency.WEEKLY:
+            return Decimal("0.033")
+        elif repayment_frequency == RepaymentFrequency.DAILY:
+            return Decimal("0.03")
+        else:
+            msg = f"No interest rate defined for {repayment_frequency}"
+            raise ValueError(msg)
 
     async def get_active_loan(self, user_id: UUID) -> Loan | None:
         result = await self.session.execute(
@@ -22,14 +37,25 @@ class LoanService(BaseService[Loan]):
         result = await self.session.execute(
                 select(Loan).where(Loan.user_id == user_id, Loan.status == "active")
             )
-        return result.scalar_one_or_none()
+        loan = result.scalar_one_or_none()
+        if loan is None:
+            raise NotFoundError("Loan")
+        return loan
 
     async def create_loan(self, loan_create: LoanCreate):
-        result = await self.session.execute(select(User.id).where(User.id == loan_create.user_id))
+        result = await self.session.execute(
+            select(User.id).where(
+                User.id == loan_create.user_id, User.is_verified
+                )
+                )
         if result.scalar_one_or_none() is None:
             raise NotFoundError("User")
+        interest_rate = self.get_interest_rate(loan_create.repayment_frequency)
+        balance = interest_rate * loan_create.principal * 12 + loan_create.principal
         new_loan = Loan(
-            **loan_create.model_dump()
+            **loan_create.model_dump(),
+            interest_rate=interest_rate,
+            balance=balance
         )
         blocking_loan = await self.get_active_loan(user_id=loan_create.user_id)
 

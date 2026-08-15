@@ -11,6 +11,8 @@ router = APIRouter()
 @router.post("/paystack", status_code=status.HTTP_200_OK)
 async def paystack_webhook(request: Request, service: WebHookDps):
     signature = request.headers.get("x-paystack-signature")
+    print("Received:")
+    print(signature)
     if signature is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -18,6 +20,8 @@ async def paystack_webhook(request: Request, service: WebHookDps):
         )
 
     raw_body = await request.body()
+    print("recieved")
+    print(raw_body)
 
     if not verify_paystack_signature(
         raw_body,
@@ -37,7 +41,12 @@ async def paystack_webhook(request: Request, service: WebHookDps):
     try:
         await service.process_gateway_event(payload)
 
-    except Exception:
-        return
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"could not complete payment process because if {e}"
+        )
 
-    return {"status": "recieved" }
+    print("EVENT:", payload.get("event"))
+    print("REFERENCE:", payload["data"]["reference"])
+    return {"status": "recieved"}

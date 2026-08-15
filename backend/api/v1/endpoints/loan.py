@@ -27,6 +27,12 @@ async def create_loan(
         )
     return await service.create_loan(loan_data)
 
+@router.get("/pending", response_model=list[LoanRead])
+async def get_pending_loan(
+    service: LoanDeps, user: EmployeeDeps, limit: int = 100, offset: int = 0
+):
+    return await service.loan_pending(limit=limit, skip=offset)
+
 
 @router.get("/me/history", response_model=list[LoanRead])
 async def loan_history(service: LoanDeps, user: CurrentUserDps):
@@ -40,13 +46,6 @@ async def get_all_lones_for_staff(service: LoanDeps, user: EmployeeDeps, status_
 @router.get("/{loan_id}", response_model=LoanRead)
 async def get_loan(service: LoanDeps, user: CurrentUserDps, loan_id: UUID):
     return await service.get_loan_by_id(loan_id=loan_id, user_id=user.id)
-
-
-@router.get("/pending", response_model=list[LoanRead])
-async def get_pending_loan(
-    service: LoanDeps, limit: int = 100, offset: int = 0
-):
-    return await service.loan_pending(limit=limit, skip=offset)
 
 @router.get("/{loan_id}/staff", response_model=LoanRead)
 async def get_any_loan_by_id(service: LoanDeps, user: EmployeeDeps, loan_id: UUID):

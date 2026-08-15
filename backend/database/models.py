@@ -22,7 +22,8 @@ from backend.database.db_types import (
     RepaymentStatus,
     Role,
     TransactionStatus,
-    LedgerEntryType
+    LedgerEntryType,
+    RepaymentFrequency
 )
 
 
@@ -86,6 +87,15 @@ class Loan(Base):
     )
     principal: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     balance: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    repayment_frequency: Mapped[RepaymentFrequency] = mapped_column(
+        SQL_ENUM(
+            RepaymentFrequency,
+            name="repayment_frequncy_enum",
+            values_callable=lambda x: [e.value for e in x]
+        ),
+        default=RepaymentFrequency.MONTHLY,
+        server_default="monthly"
+    )
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
     interest_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     status: Mapped[LoanStatus] = mapped_column(
