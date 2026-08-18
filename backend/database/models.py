@@ -87,6 +87,7 @@ class Loan(Base):
     )
     principal: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     balance: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    savings_balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0.00"))
     repayment_frequency: Mapped[RepaymentFrequency] = mapped_column(
         SQL_ENUM(
             RepaymentFrequency,
@@ -98,13 +99,14 @@ class Loan(Base):
     )
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
     interest_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    installment: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     status: Mapped[LoanStatus] = mapped_column(
         SQL_ENUM(
             LoanStatus,
             name="loan_status_enum",
             values_callable=lambda x: [e.value for e in x],
         ),
-        default=LoanStatus.PENDING,
+        default=LoanStatus.ACTIVE,
         server_default="pending",
     )
     start_date: Mapped[datetime | None] = mapped_column(
@@ -186,45 +188,6 @@ class Repayment(Base):
                 default=datetime.now,
             )
 
-
-class Transaction(Base):
-    __tablename__ = "transactions"
-    id: Mapped[UUID] = mapped_column(
-                PG_UUID(as_uuid=True),
-                primary_key=True,
-                default=uuid4,
-                )
-    loan_id: Mapped[UUID] = mapped_column(
-            PG_UUID(as_uuid=True),
-            ForeignKey("loans.id"),
-            index=True,
-        )
-    repayment_id: Mapped[UUID] = mapped_column(
-            PG_UUID(as_uuid=True),
-            ForeignKey("repayments.id"),
-            index=True,
-        )
-    gateway_reference: Mapped[str] = mapped_column(String(255))
-
-    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
-    currency: Mapped[str] = mapped_column(String(3), default="NGN")
-    status: Mapped[TransactionStatus] = mapped_column(
-            SQL_ENUM(
-                TransactionStatus,
-                name="transaction_status_enum",
-                values_callable=lambda x: [e.value for e in x],
-            ),
-            default=TransactionStatus.PENDING,
-            server_default="pending"
-        )
-    raw_request: Mapped[dict] = mapped_column(JSONB)
-    raw_response: Mapped[dict] = mapped_column(JSONB)
-    created_at: Mapped[datetime] = mapped_column(
-                    DateTime(timezone=True),
-                    default=datetime.now,
-                )
-
-
 class Ledger(Base):
     __tablename__ = "ledgers"
     id: Mapped[UUID] = mapped_column(
@@ -248,12 +211,7 @@ class Ledger(Base):
                 index=True,
                 nullable=True
             )
-    transaction_id: Mapped[UUID] = mapped_column(
-                    PG_UUID(as_uuid=True),
-                    ForeignKey("transactions.id"),
-                    index=True,
-                    nullable=True
-                )
+
     entry_type: Mapped[LedgerEntryType] = mapped_column(
         SQL_ENUM(
             LedgerEntryType,
@@ -268,6 +226,7 @@ class Ledger(Base):
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
     balance_after: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     description: Mapped[str] = mapped_column(Text)
+    reference: Mapped[str] = mapped_column(String(255))
     created_by: Mapped[UUID | None] = mapped_column(
                         PG_UUID(as_uuid=True),
                         ForeignKey("users.id"),

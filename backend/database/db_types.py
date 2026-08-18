@@ -8,11 +8,11 @@ class Role(Enum):
 
 
 class LoanStatus(Enum):
-    PENDING = "pending"
+    # PENDING = "pending"
     ACTIVE = "active"
     PAIDOFF = "paid_off"
     DEFAULTED = "defaulted"
-    WRIITENOFF = "written_off"
+    # WRIITENOFF = "written_off"
 
 
 class RepaymentFrequency(Enum):
@@ -31,6 +31,7 @@ class RepaymentStatus(Enum):
 class LedgerEntryType(Enum):
     DISBURSEMENT = "disbursement"
     REPAYMENT = "repayment"
+    SAVINGS = "savings_credit"
     INTEREST_ACCRUAL = "interest_accrual"
     FEE = "fee"
     ADJUSTMENT = "adjustment"

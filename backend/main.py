@@ -142,6 +142,15 @@ async def bad_request_exception(
         content={"detail": str(exc)},
     )
 
+@app.exception_handler(user_exception.RepaymentAmountInsufficent)
+async def repayment_amount_exception(
+    request: Request,
+    exc: user_exception.RepaymentAmountInsufficent,
+        ):
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
 
 
 @app.get("/scalars", include_in_schema=False)

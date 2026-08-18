@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     email: EmailStr
     phone: PhoneNumber
     address: str
+    role: Role
 
 
 class UserCreate(UserBase):
@@ -45,6 +46,6 @@ class UserRead(UserBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
-    role: Role = Role.CUSTOMER
+    # role: Role = Role.CUSTOMER
 
     model_config = ConfigDict(from_attributes=True)

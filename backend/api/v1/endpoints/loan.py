@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from backend.api.dependencies import CurrentUserDps, LoanDeps, EmployeeDeps
+from backend.api.dependencies import CurrentUserDps, LoanDeps, EmployeeDeps, CurrentLoanDeps
 from backend.api.schemas.loan import LoanCreate, LoanRead
 from backend.database.db_types import LoanStatus
 
@@ -26,6 +26,10 @@ async def create_loan(
             detail="You cannot Create Loan for yourself"
         )
     return await service.create_loan(loan_data)
+
+@router.get("/me/current")
+async def current_loan(loan: CurrentLoanDeps):
+    return loan.loan
 
 @router.get("/pending", response_model=list[LoanRead])
 async def get_pending_loan(

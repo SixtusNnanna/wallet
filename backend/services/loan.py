@@ -2,7 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.database.models import Loan, User
+from backend.database.models import Ledger, Loan, User
 from backend.api.schemas.loan import LoanCreate, LoanRead
 from backend.services.base import BaseService
 from backend.exceptions.user import ExistsError, NotFoundError
@@ -14,15 +14,34 @@ class LoanService(BaseService[Loan]):
         super().__init__(session, Loan)
 
     @staticmethod
-    def get_interest_rate(
+    def get_loan_data(
+        principal: Decimal,
         repayment_frequency: RepaymentFrequency,
-    ) -> Decimal:
+    ) -> dict:
         if repayment_frequency == RepaymentFrequency.MONTHLY:
-            return Decimal("0.04")
+            balance = principal * Decimal("1.50")
+            installment = balance / 12
+            return {
+                "interest_rate": Decimal("0.04"),
+                "balance": balance,
+                "installment": installment
+            }
         elif repayment_frequency == RepaymentFrequency.WEEKLY:
-            return Decimal("0.033")
+            balance = principal * Decimal("1.40")
+            installment = balance / 48
+            return {
+                "interest_rate": Decimal("0.04"),
+                "balance": balance,
+                "installment": installment
+             }
         elif repayment_frequency == RepaymentFrequency.DAILY:
-            return Decimal("0.03")
+            balance = principal * Decimal("1.40")
+            installment = balance / 48
+            return {
+                    "interest_rate": Decimal("0.03"),
+                    "balance": balance,
+                    "installment": installment
+                }
         else:
             msg = f"No interest rate defined for {repayment_frequency}"
             raise ValueError(msg)
@@ -50,18 +69,35 @@ class LoanService(BaseService[Loan]):
                 )
         if result.scalar_one_or_none() is None:
             raise NotFoundError("User")
-        interest_rate = self.get_interest_rate(loan_create.repayment_frequency)
-        balance = interest_rate * loan_create.principal * 12 + loan_create.principal
+        payload = self.get_loan_data(
+            loan_create.principal, loan_create.repayment_frequency
+            )
         new_loan = Loan(
             **loan_create.model_dump(),
-            interest_rate=interest_rate,
-            balance=balance
+            interest_rate=payload["interest_rate"],
+            balance=payload["balance"],
+            installment=payload["installment"] * Decimal("1.3")
         )
         blocking_loan = await self.get_active_loan(user_id=loan_create.user_id)
 
         if blocking_loan:
             raise ExistsError("Loan")
-        return await self.add(new_loan)
+        self.session.add(new_loan)
+        await self.session.flush()
+        loan_disbursement_entry = Ledger(
+                loan_id=new_loan.id,
+                user_id=new_loan.user_id,
+                entry_type="loan_disbursement",
+                account="loan_disbursement",
+                amount=new_loan.balance,
+                balance_after=new_loan.balance,
+                description="Loan Disbursement",
+                reference=f"loan_{new_loan.id}",
+                created_by=None,
+                )
+        self.session.add(loan_disbursement_entry)
+        await self.session.commit()
+        return new_loan
 
     async def get_owners_loan_history(self, user_id: UUID):
         return await self.get_items(

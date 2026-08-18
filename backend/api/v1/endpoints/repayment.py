@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 
-from backend.api.dependencies import CurrentUserDps, EmployeeDeps, RepaymentDps
+from backend.api.dependencies import CurrentUserDps, EmployeeDeps, RepaymentDps, CurrentLoanDeps
 from backend.api.schemas.repayment import RepaymentCreate, RepaymentRead
 from backend.database.db_types import RepaymentStatus
 
@@ -13,13 +13,18 @@ router = APIRouter()
 async def make_repayment(
     service: RepaymentDps,
     repayment_data: RepaymentCreate,
-    user: CurrentUserDps,
+    current_loan: CurrentLoanDeps
 ) -> dict:
-    return await service.make_payment(repayment_data, user)
+    return await service.make_payment(
+        repayment_data,
+        current_loan.user,
+        current_loan.loan,
+    )
 
 
 @router.get("/me", response_model=list[RepaymentRead])
 async def get_users_repayment(
+    
     service: RepaymentDps,
     user: CurrentUserDps,
     limit: int = 100,

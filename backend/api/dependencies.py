@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.security import oauth2_scheme
 from backend.database.db_types import Role
-from backend.database.models import User
+from backend.database.models import User, Loan
 from backend.database.redis import is_jti_blacklisted
 from backend.database.session import get_session
 from backend.exceptions import user as user_exception
@@ -15,7 +15,9 @@ from backend.services.loan import LoanService
 from backend.services.repayment import RepaymentServices
 from backend.services.user import UserService
 from backend.services.webhook import WebHookService
+from backend.services.ledger import LedgerService
 from backend.utlis import decode_access_token
+from backend.exceptions.user import NotFoundError
 
 
 SessionDeps = Annotated[AsyncSession, Depends(get_session)]
@@ -106,3 +108,34 @@ def get_repayment_service(session: SessionDeps, paystack: PayStackDeps):
 
 
 RepaymentDps = Annotated[RepaymentServices, Depends(get_repayment_service)]
+
+
+def get_ledger_service(session: SessionDeps):
+    return LedgerService(session=session)
+
+
+LedgerDeps = Annotated[LedgerService, Depends(get_ledger_service)]
+
+class CurrentLoanContext:
+    def __init__(self, loan: Loan, user: User):
+        self.loan = loan
+        self.user = user
+
+
+async def get_current_loan(
+    current_user: CurrentUserDps,
+    service: LoanDeps,
+) -> CurrentLoanContext:
+    loan = await service.get_active_loan(
+        user_id=current_user.id
+    )
+
+    if loan is None:
+        raise NotFoundError("No active loan")
+
+    return CurrentLoanContext(
+        loan=loan,
+        user=current_user,
+    )
+
+CurrentLoanDeps = Annotated[Loan, Depends(get_current_loan)]

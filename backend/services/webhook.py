@@ -1,8 +1,10 @@
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database.models import Loan, Repayment, WebhookEvent, Ledger
-from backend.exceptions.user import IntegrityError, PaymentAmountMismatchError
+from backend.exceptions.user import IntegrityError, PaymentAmountMismatchError, NotFoundError
+from backend.services.repayment import confirm_repayment_success
 
 
 def convert_str(date_str: str):
@@ -17,6 +19,7 @@ class WebHookService:
         data = payload.get("data", {})
         gate_way_event_id = str(data.get("id"))
         reference = data.get("reference")
+        amount = data.get("amount")
         paid_at_str = data.get("paid_at")
         print("FOUND REFERENCE", reference)
 
@@ -49,7 +52,12 @@ class WebHookService:
 
         if event_type == "charge.success":
             print("EVENT TYPE IS SUCCESS")
-            await self._handle_success(repayment, data)
+            await confirm_repayment_success(
+                session=self.session,
+                repayment=repayment,
+                paid_kobo=amount,
+                source="webhook"
+            )
         elif event_type == "charge.failed":
             print("EVENT TYPE FAILD")
             repayment.status = "failed"
@@ -57,34 +65,6 @@ class WebHookService:
         webhook_event.processed = True
         await self.session.commit()
 
-    async def _handle_success(self, repayment: Repayment, data: dict):
-        expected_kobo = int(repayment.amount * 100)
-        paid_kobo = data.get("amount")
-        if paid_kobo != expected_kobo:
-            repayment.status = "failed"
-            raise PaymentAmountMismatchError(
-                "The amount paid is not equal to the amount expected"
-            )
 
-        result = await self.session.execute(
-            select(Loan).where(Loan.id == repayment.loan_id).with_for_update()
-        )
-        loan = result.scalar_one()
 
-        new_balance = loan.balance - repayment.amount
-        repayment.status = "success"
-        paid_at_str = data.get("paid_at")
-        repayment.paid_at = convert_str(paid_at_str)
 
-        ledger_entry = Ledger(
-            loan_id=loan.id,
-            user_id=repayment.user_id,
-            repayment_id=repayment.id,
-            entry_type="repayment",
-            account="loan_receivable",
-            amount=repayment.amount,
-            balance_after=new_balance,
-            description=f"Repayment via Paystack, reference {repayment.gateway_reference}",
-            created_by=None,
-        )
-        self.session.add(ledger_entry)

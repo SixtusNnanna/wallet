@@ -30,6 +30,8 @@ class LoanCreate(LoanBase):
 
 class LoanRead(LoanBase):
     id: UUID
+    principal: Decimal
+    balance: Decimal
     created_at: datetime
     updated_at: datetime
 

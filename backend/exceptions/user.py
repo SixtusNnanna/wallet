@@ -46,3 +46,6 @@ class RepaymentAlreadyConfirmedError(Exception):
 
 class BadRequestException(Exception):
     pass
+
+class RepaymentAmountInsufficent(Exception):
+    pass
