@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -8,20 +8,22 @@ from sqlalchemy import (
     DateTime,
     Enum as SQL_ENUM,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
+
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 from sqlalchemy import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 from backend.database.db_types import (
     LoanStatus,
     RepaymentStatus,
     Role,
-    TransactionStatus,
     LedgerEntryType,
     RepaymentFrequency
 )
@@ -107,7 +109,7 @@ class Loan(Base):
             values_callable=lambda x: [e.value for e in x],
         ),
         default=LoanStatus.ACTIVE,
-        server_default="pending",
+        server_default="active",
     )
     start_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -251,7 +253,7 @@ class WebhookEvent(Base):
                     )
     event_type: Mapped[str] = mapped_column(String(100))
     gate_way: Mapped[str] = mapped_column(String(30))
-    payload: Mapped[dict] = mapped_column(JSONB)
+    payload: Mapped[dict] = mapped_column(JSON)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
     processed_at: Mapped[datetime] = mapped_column(
                     DateTime(timezone=True)
@@ -266,10 +268,3 @@ class WebhookEvent(Base):
                         DateTime(timezone=True),
                         default=datetime.now,
                     )
-
-
-
-
-
-
-

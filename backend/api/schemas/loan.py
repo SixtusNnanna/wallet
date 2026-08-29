@@ -7,10 +7,9 @@ from backend.database.db_types import LoanStatus, RepaymentFrequency
 
 class LoanBase(BaseModel):
     user_id: UUID
-    currency: str
     status: LoanStatus = Field(default=LoanStatus.ACTIVE)
     repayment_frequency: RepaymentFrequency = Field(
-        default=RepaymentFrequency.MONTHLY)
+        default="monthly")
 
     start_date: datetime = Field(default=datetime.now(UTC))
     due_date: datetime = Field(default=datetime.now(UTC))
@@ -30,9 +29,12 @@ class LoanCreate(LoanBase):
 
 class LoanRead(LoanBase):
     id: UUID
+    currency: str
     principal: Decimal
     balance: Decimal
-    created_at: datetime
-    updated_at: datetime
+    installment: Decimal
+    start_date: datetime | None = None
+    due_date: datetime | None = None
+    end_date: datetime | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)

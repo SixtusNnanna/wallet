@@ -9,9 +9,13 @@ class NotFoundError(Exception):
         self.name = name
         super().__init__(name)
 
+
+
 class InvalidPasswordError(Exception):
     pass
 
+class InvalidCodeError(Exception):
+    pass
 class InvalidTokenError(Exception):
     pass
 
@@ -48,4 +52,7 @@ class BadRequestException(Exception):
     pass
 
 class RepaymentAmountInsufficent(Exception):
+    pass
+
+class RateLimitException(Exception):
     pass

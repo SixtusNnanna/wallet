@@ -42,7 +42,7 @@ class RepaymentServices(BaseService[Repayment]):
         result = await self.session.execute(stmt)
         loan = result.scalar_one_or_none()
         if loan is None:
-            raise NotFoundError("No Loan")
+            raise NotFoundError("Loan")
         # existing_pending_payment = await self.check_existing_pending_repayment(loan.id)
         # if existing_pending_payment:
         #     raise RepaymentAlreadPendingError(
@@ -145,8 +145,10 @@ class RepaymentServices(BaseService[Repayment]):
             source="reconcilliation",
         )
         await self.session.commit()
-        return {"message", "Payment Reconciled"}
+        return {"message": "Payment Reconciled"}
 
+
+from decimal import Decimal, ROUND_HALF_UP
 
 async def confirm_repayment_success(
     session: AsyncSession,
@@ -155,6 +157,7 @@ async def confirm_repayment_success(
     source: str,
 ) -> None:
 
+    # ── idempotency ────────────────────────────────────────────────
     existing = await session.execute(
         select(Ledger).where(Ledger.repayment_id == repayment.id)
     )
@@ -176,77 +179,85 @@ async def confirm_repayment_success(
     repayment.status = "success"
     repayment.paid_at = datetime.now(timezone.utc)
 
+    amount = repayment.amount
+
+
     if loan.balance <= 0:
         loan.status = "paid_off"
-        new_savings_balance = loan.savings_balance + repayment.amount
-        savings_only_entry = Ledger(
+        loan.savings_balance += amount
+
+        session.add(Ledger(
             loan_id=loan.id,
             user_id=repayment.user_id,
             repayment_id=repayment.id,
             entry_type="savings_credit",
             account="savings",
-            amount=repayment.amount,
-            balance_after=new_savings_balance,
-            description=f"Repayment on already-settled loan, credited fully to savings via {source}, reference {repayment.gateway_reference}",
+            amount=amount,
+            balance_after=loan.savings_balance,
+            description=(
+                f"Repayment on already-settled loan, "
+                f"credited fully to savings via {source}, "
+                f"reference {repayment.gateway_reference}"
+            ),
             reference=repayment.gateway_reference,
             created_by=None,
-        )
-        session.add(savings_only_entry)
+        ))
         await session.flush()
         await session.refresh(loan)
         return
 
+    SAVINGS_RATIO = Decimal("0.30")
+    savings_cut = (amount * SAVINGS_RATIO).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    loan_intended = amount - savings_cut
 
-    SAVINGS_RATIO = Decimal(3) / Decimal(13)
-    savings_cut = (repayment.amount * SAVINGS_RATIO).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP)
-    loan_intended = repayment.amount - savings_cut
-
-    if loan_intended > loan.balance:
-
-        overpaid_amount = loan_intended - loan.balance
+    if amount >= loan.balance:
         applied_to_loan = loan.balance
-        total_savings = savings_cut + overpaid_amount
+        overpayment = amount - loan.balance
+        total_savings = overpayment
+
+        loan.balance = Decimal("0")
+        loan.status = "paid_off"
     else:
         applied_to_loan = loan_intended
         total_savings = savings_cut
+        loan.balance -= applied_to_loan
 
-    new_loan_balance = loan.balance - applied_to_loan
-    new_savings_balance = loan.savings_balance + total_savings
-
-    loan.balance = new_loan_balance
-    loan.savings_balance = new_savings_balance
-
-    loan_ledger_entry = Ledger(
-        loan_id=loan.id,
-        user_id=repayment.user_id,
-        repayment_id=repayment.id,
-        entry_type="repayment",
-        account="loan_receivable",
-        amount=applied_to_loan,
-        balance_after=new_loan_balance,
-        description=f"Repayment confirmed via {source}, reference {repayment.gateway_reference}",
-        reference=repayment.gateway_reference,
-        created_by=None,
-    )
-    session.add(loan_ledger_entry)
+    loan.savings_balance += total_savings
+    if applied_to_loan > 0:
+        session.add(Ledger(
+            loan_id=loan.id,
+            user_id=repayment.user_id,
+            repayment_id=repayment.id,
+            entry_type="repayment",
+            account="loan_receivable",
+            amount=applied_to_loan,
+            balance_after=loan.balance,
+            description=(
+                f"Repayment confirmed via {source}, "
+                f"reference {repayment.gateway_reference}"
+            ),
+            reference=repayment.gateway_reference,
+            created_by=None,
+        ))
 
     if total_savings > 0:
-        new_savings_balance = loan.savings_balance + total_savings
-        savings_ledger_entry = Ledger(
+        session.add(Ledger(
             loan_id=loan.id,
             user_id=repayment.user_id,
             repayment_id=repayment.id,
             entry_type="savings_credit",
             account="savings",
             amount=total_savings,
-            balance_after=new_savings_balance,
-            description=f"Savings credit (30% cut + any overpayment) via {source}, reference {repayment.gateway_reference}",
+            balance_after=loan.savings_balance,
+            description=(
+                f"Savings credit (30% cut + any overpayment) via {source}, "
+                f"reference {repayment.gateway_reference}"
+            ),
             reference=repayment.gateway_reference,
             created_by=None,
-        )
-        session.add(savings_ledger_entry)
+        ))
+
     await session.flush()
     await session.refresh(loan)
-
-

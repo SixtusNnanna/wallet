@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from backend.integration.paystack import PaystackClient
 from backend.database.session import engine
@@ -59,6 +60,18 @@ async def user_exists_handler(request: Request, exc: user_exception.ExistsError)
         content={"detail": f"{exc.name} Already Exists"},
     )
 
+@app.exception_handler(user_exception.RateLimitException)
+async def rate_limit_handler(
+    request: Request,
+    exc: user_exception.RateLimitException
+):
+    # 400 Bad Request: Domin bayanan da aka turo sun riga sun kasance
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={
+            "detail":  "You can't make  another request a this moment, try again"
+            },
+    )
 
 @app.exception_handler(user_exception.NotFoundError)
 async def user_not_found_handler(
@@ -93,8 +106,17 @@ async def invalid_token_handler(
     request: Request, exc: user_exception.InvalidTokenError
 ):
     return JSONResponse(
-        status_code=status.HTTP_401_UNAUTHORIZED,
+        status_code=status.HTTP_400_BAD_REQUEST,
         content={"detail": "Token ɗinka ba shi da inganci ko ya mutu."},
+    )
+
+@app.exception_handler(user_exception.InvalidCodeError)
+async def invalid_code_hander(
+    request: Request, exc: user_exception.InvalidCodeError
+):
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": f"{exc}"},
     )
 
 
@@ -156,3 +178,12 @@ async def repayment_amount_exception(
 @app.get("/scalars", include_in_schema=False)
 async def get_scalar_docs():
     return get_scalar_api_reference(openapi_url=app.openapi_url, title="Scalars API")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

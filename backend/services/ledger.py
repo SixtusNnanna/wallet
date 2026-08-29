@@ -58,7 +58,13 @@ class LedgerService(BaseService[Ledger]):
         result = await self.session.execute(statement)
         loan = result.scalar_one_or_none()
         if loan is None:
-            raise NotFoundError("Loan")
+            return {
+                    "principal": "0.00",
+                    "total_repaid": "0.00",
+                    "outstanding_balance": 0.00,
+                    "savings_balance": 0.00,
+                    }
+
         repayment_statement = select(
             func.coalesce(func.sum(Ledger.amount), Decimal("0.00"))
         ).where(
@@ -68,11 +74,17 @@ class LedgerService(BaseService[Ledger]):
         )
         amount_repaid = await self.session.scalar(repayment_statement)
 
+        savings_statement = select(
+            func.coalesce(
+                func.sum(Loan.savings_balance), Decimal("0.00"))
+            ).where(Loan.user_id == user_id)
+        total_savings = await self.session.scalar(savings_statement)
+
         return {
             "principal": loan.principal,
             "total_repaid": amount_repaid,
             "outstanding_balance": loan.balance,
-            "savings_balance": loan.savings_balance,
+            "savings_balance": total_savings,
         }
 
     async def get_users_ledger(

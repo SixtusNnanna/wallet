@@ -1,6 +1,6 @@
 from decimal import Decimal
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database.models import Ledger, Loan, User
 from backend.api.schemas.loan import LoanCreate, LoanRead
@@ -36,7 +36,7 @@ class LoanService(BaseService[Loan]):
              }
         elif repayment_frequency == RepaymentFrequency.DAILY:
             balance = principal * Decimal("1.40")
-            installment = balance / 48
+            installment = balance / 240
             return {
                     "interest_rate": Decimal("0.03"),
                     "balance": balance,
@@ -74,6 +74,7 @@ class LoanService(BaseService[Loan]):
             )
         new_loan = Loan(
             **loan_create.model_dump(),
+            currency="NGN",
             interest_rate=payload["interest_rate"],
             balance=payload["balance"],
             installment=payload["installment"] * Decimal("1.3")
@@ -87,7 +88,7 @@ class LoanService(BaseService[Loan]):
         loan_disbursement_entry = Ledger(
                 loan_id=new_loan.id,
                 user_id=new_loan.user_id,
-                entry_type="loan_disbursement",
+                entry_type="disbursement",
                 account="loan_disbursement",
                 amount=new_loan.balance,
                 balance_after=new_loan.balance,
@@ -111,7 +112,7 @@ class LoanService(BaseService[Loan]):
 
     async def get_all_loans(
         self,
-        status: LoanStatus,
+        status: str,
         limit: int = 100,
         skip: int = 0,
     ):
@@ -135,6 +136,8 @@ class LoanService(BaseService[Loan]):
         if not result:
             raise NotFoundError("Loan")
         return result
+
+
 
 
 

@@ -138,4 +138,4 @@ async def get_current_loan(
         user=current_user,
     )
 
-CurrentLoanDeps = Annotated[Loan, Depends(get_current_loan)]
+CurrentLoanDeps = Annotated[CurrentLoanContext, Depends(get_current_loan)]

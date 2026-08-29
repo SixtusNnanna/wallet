@@ -1,3 +1,4 @@
+from redis.asyncio import Redis
 from itsdangerous import (
     BadSignature,
     SignatureExpired,
@@ -6,23 +7,23 @@ from itsdangerous import (
 
 from backend.config import settings
 
+
 serializer = URLSafeTimedSerializer(secret_key=settings.SECRETS)
 
-EMAIL_VERIFICATION_SALT = "email_verification"
 
-
-def generate_verification_token(email: str) -> str:
-    return serializer.dumps(email, salt=EMAIL_VERIFICATION_SALT)
+def generate_verification_token(email: str, salt: str) -> str:
+    return serializer.dumps(email, salt=salt)
 
 
 def verify_verfication_token(
     token: str,
+    salt: str,
     max_age_seconds: int = 3600,
 ) -> str | None:
     try:
         email = serializer.loads(
             token,
-            salt=EMAIL_VERIFICATION_SALT,
+            salt=salt,
             max_age=max_age_seconds,
         )
 

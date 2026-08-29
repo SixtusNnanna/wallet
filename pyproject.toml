@@ -5,8 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiosqlite>=0.22.1",
     "alembic>=1.19.1",
+    "asgiref>=3.12.1",
     "asyncpg>=0.31.0",
+    "celery>=5.6.3",
     "fastapi-mail>=1.6.5",
     "fastapi[all]>=0.141.1",
     "greenlet>=3.5.5",
@@ -15,9 +18,15 @@ dependencies = [
     "phonenumbers>=9.0.36",
     "pydantic-extra-types>=2.11.1",
     "pydantic-settings>=2.15.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "python-dotenv>=1.2.2",
     "python-jose>=3.5.0",
     "redis>=8.1.0",
     "scalar-fastapi>=1.8.2",
     "sqlalchemy>=2.0.52",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]

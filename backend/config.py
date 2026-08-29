@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import Any
+
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pathlib import Path
+
 load_dotenv()
 
 
@@ -27,6 +29,9 @@ class DbSettings(BaseSettings):
             f"{self.POSTGRES_PORT}/{self.POSTGRES_DATABASE}"
         )
 
+    def get_redis_url(self, db):
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{db}"
+
 
 db_settings = DbSettings()
 
@@ -46,6 +51,7 @@ settings = AppSettings()
 
 APP_DIR = Path(__file__).resolve().parent
 
+
 class EmailSetttings(BaseSettings):
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
@@ -60,10 +66,9 @@ class EmailSetttings(BaseSettings):
     TEMPLATE_FOLDER: Any = APP_DIR / "templates"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_ignore_empty=True,
-        extra="ignore"
+        env_file=".env", env_ignore_empty=True, extra="ignore"
     )
+
 
 mail_settings = EmailSetttings()
 
@@ -74,12 +79,8 @@ class PaymentSettings(BaseSettings):
     PAYSTACK_BASE_URL: str
 
     model_config = SettingsConfigDict(
-            env_file=".env",
-            env_ignore_empty=True,
-            extra="ignore"
-        )
+        env_file=".env", env_ignore_empty=True, extra="ignore"
+    )
 
 
 payment_settings = PaymentSettings()
-
-

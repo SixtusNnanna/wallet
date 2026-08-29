@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, List, TypeVar
 from uuid import UUID
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -34,22 +34,22 @@ class BaseService(Generic[ModelType]):
         return result.scalar_one_or_none()
 
     async def list(
-            self, offset_val: int | None = None,
-            order_by=None,
-            limit_val: int | None = None,
-            start_date: datetime | None = None,
-            end_date: datetime | None = None,
-            **filters: Any
-            ) -> list[ModelType]:
+        self,
+        offset_val: int | None = None,
+        order_by=None,
+        limit_val: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        **filters: Any,
+    ) -> list[ModelType]:
 
         stmt = select(self.model)
 
-        if order_by is not None:
-            stmt = stmt.order_by(order_by)
-
         if filters:
             for field, val in filters.items():
-                stmt = stmt.where(getattr(self.model, field) == val)
+                if val is not None:
+                    stmt = stmt.where(getattr(self.model, field) == val)
+
         if start_date is not None:
             stmt = stmt.where(
                 self.model.created_at >= start_date
@@ -59,15 +59,18 @@ class BaseService(Generic[ModelType]):
             stmt = stmt.where(
                 self.model.created_at <= end_date
             )
+
+        if order_by is not None:
+            stmt = stmt.order_by(order_by)
+
         if offset_val is not None:
             stmt = stmt.offset(offset_val)
 
         if limit_val is not None:
             stmt = stmt.limit(limit_val)
 
-
-
         result = await self.session.execute(stmt)
+
         return list(result.scalars().all())
 
     async def get_items(self, order_by=None, **filters):
