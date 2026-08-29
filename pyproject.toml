@@ -36,7 +36,7 @@ dev = [
     "flake8>=7.3.0",
 ]
 
-  [flake8]
-    exclude = .venv,.git,__pycache__,migrations,build,dist
-    max-line-length = 127
-    max-complexity = 10
+[tool.flake8]
+exclude = [".venv", ".git", "__pycache__", "migrations", "build", "dist"]
+max-line-length = 127
+max-complexity = 10
