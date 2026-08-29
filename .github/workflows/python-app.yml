@@ -30,6 +30,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync
+        uv pip install flake8
 
     - name: Lint with flake8
       run: |
