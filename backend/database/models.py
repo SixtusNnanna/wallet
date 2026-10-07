@@ -1,10 +1,11 @@
-from datetime import datetime, UTC
+from datetime import datetime, date, UTC
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Enum as SQL_ENUM,
     ForeignKey,
@@ -25,7 +26,8 @@ from backend.database.db_types import (
     RepaymentStatus,
     Role,
     LedgerEntryType,
-    RepaymentFrequency
+    RepaymentFrequency,
+    SchedulePaymentStatus
 )
 
 
@@ -100,6 +102,7 @@ class Loan(Base):
         server_default="monthly"
     )
     currency: Mapped[str] = mapped_column(String(3), default="NGN")
+    term: Mapped[int] = mapped_column(Integer, default=12)
     interest_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     installment: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     status: Mapped[LoanStatus] = mapped_column(
@@ -186,6 +189,45 @@ class Repayment(Base):
                 nullable=True
             )
     updated_at: Mapped[datetime] = mapped_column(
+                DateTime(timezone=True),
+                default=datetime.now,
+            )
+
+
+class RepaymentSchedule(Base):
+    __tablename__ = "repayment_schedules"
+    id: Mapped[UUID] = mapped_column(
+                PG_UUID(as_uuid=True),
+                primary_key=True,
+                default=uuid4,
+                )
+    loan_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("loans.id"),
+        index=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        index=True,
+    )
+    installment_number: Mapped[int] = mapped_column(Integer)
+    due_date: Mapped[date] = mapped_column(Date, index=True)
+    amount_due: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    amount_paid: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), default=Decimal("0.00")
+    )
+    status: Mapped[SchedulePaymentStatus] = mapped_column(
+            SQL_ENUM(
+                SchedulePaymentStatus,
+                name="schedule_payment_status_enum",
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            default=SchedulePaymentStatus.PENDING,
+            server_default="pending"
+        )
+
+    created_at: Mapped[datetime] = mapped_column(
                 DateTime(timezone=True),
                 default=datetime.now,
             )

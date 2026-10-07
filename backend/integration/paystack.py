@@ -32,8 +32,7 @@ class PaystackClient:
                 "reference": reference,
             },
         )
-        print("PAYSTACK STATUS:", response.status_code)
-        print("PAYSTACK RESPONSE:", response.text)
+
         response.raise_for_status()
 
         return response.json()

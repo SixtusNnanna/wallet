@@ -31,7 +31,4 @@ dependencies = [
 asyncio_mode = "auto"
 pythonpath = ["."]
 
-[dependency-groups]
-dev = [
-    "flake8>=7.3.0",
-]
+

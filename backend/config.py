@@ -84,3 +84,18 @@ class PaymentSettings(BaseSettings):
 
 
 payment_settings = PaymentSettings()
+
+class WhatsappSettings(BaseSettings):
+    WHATSAPP_ACCESS_TOKEN: str
+    WHATSAPP_PHONE_NUMBER_ID: str
+    WHATSAPP_API_URL: str
+    WHATSAPP_VERIFY_TOKEN: str
+    WHATSAPP_APP_SECRET: str
+    WHATSAPP_APP_ID: int
+
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_ignore_empty=True, extra="ignore"
+    )
+
+whatsapp_settings = WhatsappSettings()

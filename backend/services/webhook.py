@@ -21,7 +21,6 @@ class WebHookService:
         reference = data.get("reference")
         amount = data.get("amount")
         paid_at_str = data.get("paid_at")
-        print("FOUND REFERENCE", reference)
 
         webhook_event = WebhookEvent(
             event_id=gate_way_event_id,
@@ -43,15 +42,12 @@ class WebHookService:
         result = await self.session.execute(stmt)
         repayment = result.scalar_one_or_none()
 
-        print("REPAYMENT HEFRE", repayment)
-
         if repayment is None:
             await self.session.commit()
             return
         webhook_event.repayment_id = repayment.id
 
         if event_type == "charge.success":
-            print("EVENT TYPE IS SUCCESS")
             await confirm_repayment_success(
                 session=self.session,
                 repayment=repayment,
@@ -59,7 +55,6 @@ class WebHookService:
                 source="webhook"
             )
         elif event_type == "charge.failed":
-            print("EVENT TYPE FAILD")
             repayment.status = "failed"
 
         webhook_event.processed = True

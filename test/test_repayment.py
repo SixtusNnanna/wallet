@@ -123,14 +123,13 @@ async def test_payment_reconcile_is_idempotent(
         f"/repayments/{repayment.id}/reconcile",
         headers={"Authorization": access_token}
     )
-    print(response_1.json())
+
     assert response_1.status_code == 200
 
     response_2 = await client.post(
         f"/repayments/{repayment.id}/reconcile",
         headers={"Authorization": access_token}
     )
-    print(response_2.json())
     assert response_2.status_code == 404
     assert "no pending repayment" in response_2.json()["detail"].lower()
     mock_paystack.verify_transction.assert_awaited_once()

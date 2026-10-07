@@ -20,13 +20,17 @@ class RepaymentFrequency(Enum):
     WEEKLY = "weekly"
     MONTHLY = "monthly"
 
-
 class RepaymentStatus(Enum):
     PENDING = "pending"
     SUCCESS = "success"
+    PARTIAL = "partial"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+class SchedulePaymentStatus(Enum):
+    PAID = "paid"
+    PARTIAL = "partial"
+    PENDING = "pending"
 
 class LedgerEntryType(Enum):
     DISBURSEMENT = "disbursement"

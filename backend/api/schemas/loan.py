@@ -8,16 +8,12 @@ from backend.database.db_types import LoanStatus, RepaymentFrequency
 class LoanBase(BaseModel):
     user_id: UUID
     status: LoanStatus = Field(default=LoanStatus.ACTIVE)
-    repayment_frequency: RepaymentFrequency = Field(
-        default="monthly")
+    repayment_frequency: RepaymentFrequency = Field(default="monthly")
 
     start_date: datetime = Field(default=datetime.now(UTC))
-    due_date: datetime = Field(default=datetime.now(UTC))
-    end_date: datetime = Field(default=datetime.now(UTC))
-
-
 class LoanCreate(LoanBase):
     principal: Decimal
+    term: int
 
     @field_validator("principal")
     @classmethod

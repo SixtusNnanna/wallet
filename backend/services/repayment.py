@@ -6,14 +6,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.repayment import RepaymentCreate
-from backend.database.db_types import RepaymentStatus, LoanStatus, RepaymentFrequency
-from backend.database.models import Loan, Repayment, User, Ledger
+from backend.database.db_types import RepaymentStatus, SchedulePaymentStatus
+from backend.database.models import Loan, Repayment, User, Ledger, RepaymentSchedule
 from backend.exceptions.user import (
-    NoActiveLoanError,
     NotFoundError,
     PaymentInitiationError,
     PayStackError,
-    RepaymentAlreadPendingError,
     PaymentError,
     PaymentAmountMismatchError,
     RepaymentAmountInsufficent,
@@ -26,7 +24,6 @@ class RepaymentServices(BaseService[Repayment]):
     def __init__(self, session: AsyncSession, paystack_client: PaystackClient):
         super().__init__(session, Repayment)
         self.paystack_client = paystack_client
-
 
     async def check_existing_pending_repayment(self, loan_id: UUID):
         return await self.get_item(loan_id=loan_id, status="pending")
@@ -147,9 +144,6 @@ class RepaymentServices(BaseService[Repayment]):
         await self.session.commit()
         return {"message": "Payment Reconciled"}
 
-
-from decimal import Decimal, ROUND_HALF_UP
-
 async def confirm_repayment_success(
     session: AsyncSession,
     repayment: Repayment,
@@ -179,11 +173,12 @@ async def confirm_repayment_success(
     repayment.status = "success"
     repayment.paid_at = datetime.now(timezone.utc)
 
-    amount = repayment.amount
 
+    amount = repayment.amount
 
     if loan.balance <= 0:
         loan.status = "paid_off"
+        loan.end_date = datetime.now(timezone.utc)
         loan.savings_balance += amount
 
         session.add(Ledger(
@@ -222,7 +217,9 @@ async def confirm_repayment_success(
     else:
         applied_to_loan = loan_intended
         total_savings = savings_cut
-        loan.balance -= applied_to_loan
+        loan.balance -= amount
+
+    await apply_repayment(session, loan.id, amount + savings_cut)
 
     loan.savings_balance += total_savings
     if applied_to_loan > 0:
@@ -261,3 +258,40 @@ async def confirm_repayment_success(
 
     await session.flush()
     await session.refresh(loan)
+
+
+async def apply_repayment(db: AsyncSession, loan_id, amount: Decimal) -> None:
+    remaining = Decimal(amount)
+    if remaining <= 0:
+        raise ValueError("Payment must be greater than zero")
+
+    result = await db.execute(
+        select(RepaymentSchedule)
+        .where(
+            RepaymentSchedule.loan_id == loan_id,
+            RepaymentSchedule.status != SchedulePaymentStatus.PAID,
+        )
+        .order_by(RepaymentSchedule.installment_number)
+        .with_for_update()
+    )
+
+    for schedule in result.scalars():
+        if remaining <= 0:
+            break
+
+        applied = min(remaining, schedule.amount_due - schedule.amount_paid)
+        schedule.amount_paid += applied
+        remaining -= applied
+
+        schedule.status = (
+            SchedulePaymentStatus.PAID
+            if schedule.amount_paid >= schedule.amount_due
+            else SchedulePaymentStatus.PARTIAL
+        )
+
+    await db.flush()
+
+
+
+
+

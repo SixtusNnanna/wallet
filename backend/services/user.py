@@ -88,6 +88,8 @@ class UserService(BaseService[User]):
             raise user_exception.InvalidPasswordError
         return user
 
+    async def get_user_by_phone(self, phone_number: str) -> User | None:
+        return await self.get_item(phone=phone_number)
     async def verify_email(self, token: str):
         email = verify_verfication_token(
             token=token,

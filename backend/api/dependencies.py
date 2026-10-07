@@ -13,11 +13,14 @@ from backend.exceptions import user as user_exception
 from backend.integration.paystack import PaystackClient
 from backend.services.loan import LoanService
 from backend.services.repayment import RepaymentServices
+from backend.services.schedule import ScheduleService
 from backend.services.user import UserService
 from backend.services.webhook import WebHookService
 from backend.services.ledger import LedgerService
 from backend.utlis import decode_access_token
 from backend.exceptions.user import NotFoundError
+from backend.services.whatsapp import WhatsAppService
+from  backend.integration.whatsapp import WhatsAppClient
 
 
 SessionDeps = Annotated[AsyncSession, Depends(get_session)]
@@ -114,13 +117,17 @@ def get_ledger_service(session: SessionDeps):
     return LedgerService(session=session)
 
 
+def get_schedule_service(session: SessionDeps):
+    return ScheduleService(session=session)
+
+ScheduleDeps = Annotated[ScheduleService, Depends(get_schedule_service)]
+
 LedgerDeps = Annotated[LedgerService, Depends(get_ledger_service)]
 
 class CurrentLoanContext:
     def __init__(self, loan: Loan, user: User):
         self.loan = loan
         self.user = user
-
 
 async def get_current_loan(
     current_user: CurrentUserDps,
@@ -139,3 +146,15 @@ async def get_current_loan(
     )
 
 CurrentLoanDeps = Annotated[CurrentLoanContext, Depends(get_current_loan)]
+
+
+def get_whatsapp_service(
+    user_service: UserService = Depends(get_user_service),
+    whatsapp_client: WhatsAppClient = Depends()
+):
+    return WhatsAppService(user_service, whatsapp_client)
+
+
+WADeps = Annotated[WhatsAppService, Depends(get_whatsapp_service)]
+
+

@@ -26,3 +26,25 @@ def decode_access_token(token: str):
         return payload
     except JWTError:
         raise InvalidTokenError
+
+
+def normalize_whatsapp_number(phone: str) -> str:
+    phone = phone.strip()
+
+    # Keep digits only
+    digits = "".join(filter(str.isdigit, phone))
+
+    # Nigerian local format: 0813... -> 234813...
+    if digits.startswith("0"):
+        digits = "234" + digits[1:]
+
+    return digits
+
+
+def format_whatsapp_number(phone: str) -> str:
+    digits = "".join(filter(str.isdigit, phone))
+    if digits.startswith("234") and len(digits) == 13:
+        return f"tel:+234-{digits[3:6]}-{digits[6:9]}-{digits[9:]}"
+    raise ValueError("Invalid Nigerian WhatsApp phone number")
+
+
